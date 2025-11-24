@@ -7,9 +7,9 @@ CodeStr        = Annotated[str, StringConstraints(min_length=1, max_length=32)]
 class CourseCreate(BaseModel): 
     name: CourseNameStr 
     code: CodeStr 
-    owner_id: int
 
 class CourseRead(CourseCreate):  
     id: int 
     name: CourseNameStr
-    owner_id: int
+    code: CodeStr
+    

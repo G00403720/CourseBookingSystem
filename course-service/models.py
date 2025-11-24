@@ -1,4 +1,3 @@
-
 from sqlalchemy import Integer, String
 from sqlalchemy.orm import declarative_base,  Mapped, mapped_column
 
@@ -12,4 +11,3 @@ class Coursedb(Base):
     id: Mapped[int] = mapped_column(primary_key=True) 
     code: Mapped[str] = mapped_column(unique=True)           
     name: Mapped[str] = mapped_column(String, nullable=False)          
-    owner_id: Mapped[int] = mapped_column(Integer, nullable=False)
