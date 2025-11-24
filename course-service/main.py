@@ -2,15 +2,15 @@ from fastapi import FastAPI, Depends, HTTPException, status, Response
 from sqlalchemy.orm import Session, selectinload 
 from sqlalchemy import select 
 from sqlalchemy.exc import IntegrityError 
-import httpx
 
 from database import engine, SessionLocal 
 from models import Base, Coursedb
 from schemas import CourseCreate, CourseRead
     
 app = FastAPI() 
-Base.metadata.create_all(bind=engine) 
-USER_SERVICE_URL = "http://user-service:8000/users/"
+@app.on_event("startup")
+def on_startup():
+    Base.metadata.create_all(bind=engine)
 
 def get_db(): 
     db = SessionLocal() 
@@ -30,37 +30,37 @@ def commit_or_rollback(db: Session, error_msg: str):
 def health(): 
     return {"status": "Course Service ok"}
 
-async def validate_user_exists(user_id: int):
-    async with httpx.AsyncClient() as client:
-        response = await client.get(f"{USER_SERVICE_URL}{user_id}")
-
-    if response.status_code != 200:
-        raise HTTPException(status_code=409, detail="User not found")    
-
-@app.post("/api/courses", response_model=CourseRead, status_code=201) 
-async def create_course(course: CourseCreate, db: Session = Depends(get_db)):
-
-    await validate_user_exists(course.owner_id) 
-
-    cour = Coursedb( 
-        name=course.name, 
-        code=course.code, 
-        owner_id=course.owner_id, 
-    ) 
-    db.add(cour) 
-    commit_or_rollback(db, "Course creation failed") 
-    db.refresh(cour) 
-    return cour 
- 
 @app.get("/api/courses", response_model=list[CourseRead]) 
 def list_courses(db: Session = Depends(get_db)): 
     stmt = select(Coursedb).order_by(Coursedb.id) 
-    return db.execute(stmt).scalars().all() 
- 
-@app.get("/api/courses/{course_id}", response_model=CourseReadWithOwner) 
-def get_course_with_owner(course_id: int, db: Session = Depends(get_db)): 
-    stmt = select(Coursedb).where(Coursedb.id == course_id).options(selectinload(Coursedb.owner)) 
-    cour = db.execute(stmt).scalar_one_or_none() 
-    if not cour: 
+    result = db.execute(stmt) 
+    courses = result.scalars().all() 
+    return courses 
+    
+@app.get("/api/courses/{course_id}", response_model=CourseRead) 
+def get_course(course_id: int, db: Session = Depends(get_db)): 
+    course = db.get(Coursedb, course_id) 
+    if not course: 
         raise HTTPException(status_code=404, detail="Course not found") 
-    return cour
+    return course 
+ 
+@app.post("/api/courses", response_model=CourseRead, status_code=status.HTTP_201_CREATED) 
+def add_course(payload: CourseCreate, db: Session = Depends(get_db)): 
+    course = Coursedb(**payload.model_dump()) 
+    db.add(course) 
+    try: 
+        db.commit() 
+        db.refresh(course) 
+    except IntegrityError: 
+        db.rollback() 
+        raise HTTPException(status_code=409, detail="Course already exists") 
+    return course 
+
+@app.delete("/api/courses/{course_id}", status_code=204) 
+def delete_course(course_id: int, db: Session = Depends(get_db)) -> Response: 
+    course = db.get(Coursedb, course_id) 
+    if not course: 
+        raise HTTPException(status_code=404, detail="Course not found") 
+    db.delete(course)          
+    db.commit() 
+    return Response(status_code=status.HTTP_204_NO_CONTENT) 
