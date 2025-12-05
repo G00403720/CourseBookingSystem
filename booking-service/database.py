@@ -2,6 +2,7 @@ import os, time
 from sqlalchemy import create_engine 
 from sqlalchemy.orm import sessionmaker 
 from sqlalchemy.exc import OperationalError 
+from models import Base
 
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./app.db")
 SQL_ECHO = os.getenv("SQL_ECHO", "false").lower() == "true" 
@@ -25,4 +26,3 @@ connect_args=connect_args)
  
 SessionLocal = sessionmaker(bind=engine, autocommit=False, autoflush=False, 
 expire_on_commit=False) 
- 
