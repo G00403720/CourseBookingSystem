@@ -1,5 +1,4 @@
 import os, time 
-from dotenv import load_dotenv 
 from sqlalchemy import create_engine 
 from sqlalchemy.orm import sessionmaker 
 from sqlalchemy.exc import OperationalError 
@@ -27,9 +26,3 @@ connect_args=connect_args)
 SessionLocal = sessionmaker(bind=engine, autocommit=False, autoflush=False, 
 expire_on_commit=False) 
  
-def get_db(): 
-    db = SessionLocal() 
-    try: 
-        yield db 
-    finally: 
-        db.close() 
