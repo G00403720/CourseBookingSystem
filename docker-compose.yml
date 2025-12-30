@@ -48,5 +48,19 @@ services:
       - APP_ENV=docker 
     restart: unless-stopped
 
+  notification-service:
+    build: ./notification-service
+    env_file: .env.docker 
+    ports:
+      - "8005:8000" 
+    depends_on:
+      - db
+      - user-service
+      - course-service
+      - booking-service
+    environment:
+      - APP_ENV=docker 
+    restart: unless-stopped
+
 volumes:
   postgres-data: {}
