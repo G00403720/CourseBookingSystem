@@ -84,13 +84,6 @@ def add_booking(payload: BookingCreate, db: Session = Depends(get_db)):
         db.rollback() 
         raise HTTPException(status_code=409, detail="booking already exists") 
     
-    requests.post(
-        "http://notification-service:8005/api/notifications",
-        params={
-            "user_id": payload.user_id,
-            "message": "Booking successfully created"
-        }
-    )
     return booking 
 
 @app.delete("/api/bookings/{booking_id}", status_code=204) 
@@ -103,12 +96,4 @@ def delete_booking(booking_id: int, db: Session = Depends(get_db)) -> Response:
 
     user_id = booking.user_id 
 
-    requests.post(
-        "http://notification-service:8005/api/notifications",
-        params={
-            "user_id": user_id,
-            "message": "Booking successfully deleted"
-        }
-    )
-
-    return Response(status_code=status.HTTP_204_NO_CONTENT) 
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
