@@ -4,20 +4,18 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError 
 
 from database import engine, AsyncSessionLocal 
-from models import Base, notificationdb
+from models import Base, Notificationdb
 from schemas import NotificationCreate, NotificationRead
     
 app = FastAPI() 
 @app.on_event("startup")
 async def on_startup():
-    Base.metadata.create_all(bind=engine)
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
 
 async def get_db(): 
-    db = AsyncSessionLocal() 
-    try: 
-        yield db 
-    finally: 
-        db.close() 
+    async with AsyncSessionLocal() as db:
+         yield db 
 
 async def commit_or_rollback(db: AsyncSession, error_msg: str): 
     try: 
@@ -27,34 +25,34 @@ async def commit_or_rollback(db: AsyncSession, error_msg: str):
         raise HTTPException(status_code=409, detail=error_msg)
       
 @app.get("/health") 
-def health(): 
+async def health(): 
     return {"status": "Notification Service ok"}
 
 @app.get("/api/notifications", response_model=list[NotificationRead])
 async def list_notifications(db: AsyncSession = Depends(get_db)):
-    stmt = select(notificationdb).order_by(notificationdb.id) 
+    stmt = select(Notificationdb).order_by(Notificationdb.id) 
     result = db.execute(stmt) 
     notifications = result.scalars().all() 
     return notifications
 
 @app.get("/api/notifications/{user_id}", response_model=NotificationRead) 
-def get_user(user_id: int, db: AsyncSession = Depends(get_db)): 
-    user = db.get(notificationdb, user_id) 
+async def get_user(user_id: int, db: AsyncSession = Depends(get_db)): 
+    user = db.get(Notificationdb, user_id) 
     if not user: 
         raise HTTPException(status_code=404, detail="Notification not found") 
     return user 
 
 @app.post("/api/notifications", response_model=NotificationRead, status_code=status.HTTP_201_CREATED)
-async def add_notification(user_id: int, message: str, db: AsyncSession = Depends(get_db)):
-    notification = notificationdb(user_id, message=message)
+async def add_notification(payload: NotificationCreate, db: AsyncSession = Depends(get_db)):
+    notification = Notificationdb(user_id = payload.user_id, message = payload.message)
     db.add(notification)
     await db.commit()
     await db.refresh(notification)
     return notification
 
 @app.delete("/api/users/{user_id}", status_code=204) 
-def delete_user(user_id: int, db: AsyncSession = Depends(get_db)) -> Response: 
-    notification = db.get(notificationdb, user_id) 
+async def delete_user(user_id: int, db: AsyncSession = Depends(get_db)) -> Response: 
+    notification = db.get(Notificationdb, user_id) 
     if not notification: 
         raise HTTPException(status_code=404, detail="Notification not found") 
     db.delete(notification)          
